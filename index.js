@@ -2,9 +2,10 @@ const express = require('express')
 const cors = require('cors')
 const mongoose = require('mongoose');
 const CryptoJS = require("crypto-js");
-const { db, AdminModel, ServiceModal } = require("./db");
+const { db, AdminModel, ServiceModal, DentistModal } = require("./db");
 const jwt = require('jsonwebtoken');
-const { authMiddleware } = require("./middlewares");
+const {  adminAuthMiddleware } = require("./middlewares");
+const { mobileRegex, emailRegex } = require("./helper");
 require('dotenv').config()
 
 
@@ -64,7 +65,7 @@ app.post("/admin/login", async (req, res) => {
   res.status(200).send({ message: "Login successful", success: true, token })
 })
 
-app.post('/admin/addservice', authMiddleware, async (req, res) => {
+app.post('/admin/addservice', adminAuthMiddleware, async (req, res) => {
   const { name, price } = req.body
   if (!name || !price) {
     return res.status(400).send({ success: false, message: "Both Service name and price are required." })
@@ -78,17 +79,28 @@ app.post('/admin/addservice', authMiddleware, async (req, res) => {
   }
 })
 
-app.post('/admin/adddentist', async (req, res) => {
+app.post('/admin/adddentist', adminAuthMiddleware, async (req, res) => {
   const { name, phone, email, password, username, gender, hourlyRate } = req.body
-  if (!name || !phone || !email || !password || !username || !hourlyRate || !gender) {
-    return res.status(400).send({ message: "All fields are required", success: false })
+  
+  if (!name || !phone || !email || !password || !username || !hourlyRate || !gender || password.length < 6 || !mobileRegex.test(phone) || !emailRegex.test(email)) {
+    return res.status(400).send({ message: "Some fields are missing or invalid", success: false })
   }
-  // TODO:
-  // put stricter validation for email, phone etc if time permits
-  // check if username already exists
-  // check if email already exists
-  // check if phone already exists
+
+  const encryptedPassword = CryptoJS.AES.encrypt(password, process.env.CRYPTO_SECRET).toString()
+
+  if (await DentistModal.findOne({ $or: [{ username: username }, { email: email }] })) {
+    // TODO: identify correct status code for this kind of request and replace
+    return res.status(500).send({ message: "Username or email already exists", success: false })
+  }
+  try {
+    const dentist = await DentistModal.create({ name, phone, email, password: encryptedPassword, username, gender, hourlyRate, createdBy: req.user.email })
+    return res.status(200).send({ message: "Dentist added successfully", success: true })
+  } catch (error) {
+    console.log(error)
+    return res.status(500).send({ message: "Something went wrong! Please try again.", success: false })
+  }
 })
+
 
 app.listen(port, () => {
 

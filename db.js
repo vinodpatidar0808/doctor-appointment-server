@@ -6,7 +6,20 @@ const ObjectId = Schema.ObjectId;
 const User = new Schema({
   name: String,
   email: { type: String, unique: true },
-  password: String
+  username: { type: String, unique: true },
+  phone: String,
+  password: String,
+  gender: {
+    type: String,
+    enum: ["male", "female", "other"]
+  },
+  age: Number,
+  services: {
+    type: [String],
+  },
+  terms: { type: Boolean, default: false },
+}, {
+  timestamps: true,
 });
 
 const Admin = new Schema({
@@ -55,6 +68,11 @@ const Dentists = new Schema({
   },
   gender: {
     type: String,
+    required: true,
+    enum: ['male', 'female', "other"]
+  },
+  age: {
+    type: Number,
     required: true
   },
   hourlyRate: {

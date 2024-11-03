@@ -2,9 +2,9 @@ const express = require('express')
 const cors = require('cors')
 const mongoose = require('mongoose');
 const CryptoJS = require("crypto-js");
-const { db, AdminModel, ServiceModal, DentistModal } = require("./db");
+const { db, AdminModel, ServiceModal, DentistModal, UserModel } = require("./db");
 const jwt = require('jsonwebtoken');
-const {  adminAuthMiddleware } = require("./middlewares");
+const { adminAuthMiddleware } = require("./middlewares");
 const { mobileRegex, emailRegex } = require("./helper");
 require('dotenv').config()
 
@@ -81,7 +81,7 @@ app.post('/admin/addservice', adminAuthMiddleware, async (req, res) => {
 
 app.post('/admin/adddentist', adminAuthMiddleware, async (req, res) => {
   const { name, phone, email, password, username, gender, hourlyRate } = req.body
-  
+
   if (!name || !phone || !email || !password || !username || !hourlyRate || !gender || password.length < 6 || !mobileRegex.test(phone) || !emailRegex.test(email)) {
     return res.status(400).send({ message: "Some fields are missing or invalid", success: false })
   }
@@ -101,6 +101,55 @@ app.post('/admin/adddentist', adminAuthMiddleware, async (req, res) => {
   }
 })
 
+
+// patient endpoints
+app.post('/patient/login', async (req, res) => {
+  const { username, password } = req.body
+
+  if (!username || !password) {
+    return res.status(400).send({ message: "", success: false })
+  }
+
+  const verifyUser = await UserModel.findOne({ $or: [{ username: username }, { email: username }] })
+
+  if (!verifyUser) {
+    return res.status(401).send({ message: "Invalid username or password", success: false })
+  }
+
+  const decryptedPassword = CryptoJS.AES.decrypt(verifyUser.password, process.env.CRYPTO_SECRET).toString(CryptoJS.enc.Utf8)
+
+  if (password !== decryptedPassword) {
+    return res.status(401).send({ message: "Invalid username or password", success: false })
+  }
+
+  const token = jwt.sign({
+    email: verifyUser.email,
+    id: verifyUser._id
+  }, process.env.JWT_SECRET, { expiresIn: 60 * 60 });
+
+  res.status(200).send({ message: "Login successful", success: true, token })
+})
+
+app.post('/patient/signup', async (req, res) => {
+  const { name, phone, email, password, username, gender, age, services, terms } = req.body
+  if (!name || !phone || !email || !password || !username || !gender || !age || !terms || password.length < 6 || !mobileRegex.test(phone) || !emailRegex.test(email) || username.length < 3) {
+    return res.status(400).send({ message: "Some fields are missing or invalid", success: false })
+  }
+
+  if (await UserModel.findOne({ $or: [{ username: username }, { email: email }] })) {
+    // TODO: identify correct status code for this kind of request and replace
+    return res.status(500).send({ message: "Username or email already exists", success: false })
+  }
+
+  const encryptedPassword = CryptoJS.AES.encrypt(password, process.env.CRYPTO_SECRET).toString()
+  try {
+    const user = await UserModel.create({ name, phone, email, password: encryptedPassword, username, gender, age, services, terms })
+    return res.status(200).send({ message: "Sign up successful", success: true })
+  } catch (error) {
+    console.log(error)
+    return res.status(500).send({ message: "Something went wrong! Please try again.", success: false })
+  }
+})
 
 app.listen(port, () => {
 

@@ -2,8 +2,9 @@ const express = require('express')
 const cors = require('cors')
 const mongoose = require('mongoose');
 const CryptoJS = require("crypto-js");
-const { db, AdminModel } = require("./db");
+const { db, AdminModel, ServiceModal } = require("./db");
 const jwt = require('jsonwebtoken');
+const { authMiddleware } = require("./middlewares");
 require('dotenv').config()
 
 
@@ -63,19 +64,24 @@ app.post("/admin/login", async (req, res) => {
   res.status(200).send({ message: "Login successful", success: true, token })
 })
 
-app.post('/admin/addservice', async (req, res) => {
+app.post('/admin/addservice', authMiddleware, async (req, res) => {
   const { name, price } = req.body
   if (!name || !price) {
-    return res.status(400).send({ success: false })
+    return res.status(400).send({ success: false, message: "Both Service name and price are required." })
   }
-  await AdminModel.create({ name, price })
-  res.send({ success: true })
+
+  try {
+    const service = await ServiceModal.create({ name, price })
+    return res.status(200).send({ success: true, message: "Service added successfully!" })
+  } catch (error) {
+    return res.status(500).send({ success: false, message: "Something went wrong! Please try again." })
+  }
 })
 
 app.post('/admin/adddentist', async (req, res) => {
   const { name, phone, email, password, username, gender, hourlyRate } = req.body
   if (!name || !phone || !email || !password || !username || !hourlyRate || !gender) {
-    return res.status(400).send({message:"All fields are required", success: false })
+    return res.status(400).send({ message: "All fields are required", success: false })
   }
   // TODO:
   // put stricter validation for email, phone etc if time permits

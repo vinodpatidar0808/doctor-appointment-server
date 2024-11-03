@@ -12,23 +12,31 @@ const User = new Schema({
 const Admin = new Schema({
   name: String,
   email: { type: String, unique: true, required: true },
-  password: {type: String, required: true},
-  username: {type: String, unique: true},
+  password: { type: String, required: true },
+  username: { type: String, unique: true },
 }, {
   timestamps: true,
 });
 
-// const Services  = new Schema({
-//   name: String,
-//   price: Number
-// });
+const Services = new Schema({
+  name: {
+    type: String,
+    required: true
+  },
+  price: {
+    type: Number,
+    required: true,
+    min: 0
+  }
+});
 
 
-// const ServiceModal = mongoose.model('services', Services);
+const ServiceModal = mongoose.model('services', Services);
 const UserModel = mongoose.model('users', User);
 const AdminModel = mongoose.model('admins', Admin);
 
 module.exports = {
   UserModel,
-  AdminModel
+  AdminModel,
+  ServiceModal
 }

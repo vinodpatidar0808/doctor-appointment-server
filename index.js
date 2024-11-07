@@ -2,9 +2,9 @@ const express = require('express')
 const cors = require('cors')
 const mongoose = require('mongoose');
 const CryptoJS = require("crypto-js");
-const { db, AdminModel, ServiceModal, DentistModal, UserModel } = require("./db");
+const { AdminModel, ServiceModal, DentistModal, UserModel, AppointmentModal } = require("./db");
 const jwt = require('jsonwebtoken');
-const { adminAuthMiddleware } = require("./middlewares");
+const { adminAuthMiddleware, patientAuthMiddleware } = require("./middlewares");
 const { mobileRegex, emailRegex } = require("./helper");
 require('dotenv').config()
 
@@ -21,8 +21,8 @@ async function main() {
 main().catch(err => console.log(err));
 
 
-var whitelist = ['http://localhost:5173', "http://localhost:3000"]
-var corsOptions = {
+const whitelist = ['http://localhost:5173', "http://localhost:3000"]
+const corsOptions = {
   origin: function (origin, callback) {
     // TODO: remove this before deploying
     callback(null, true)
@@ -141,6 +141,10 @@ app.post('/patient/signup', async (req, res) => {
     return res.status(500).send({ message: "Username or email already exists", success: false })
   }
 
+  if (await DentistModal.findOne({ $or: [{ username: username }, { email: email }] })) {
+    return res.status(500).send({ message: "You are already registered as a dentist.", success: false })
+  }
+
   const encryptedPassword = CryptoJS.AES.encrypt(password, process.env.CRYPTO_SECRET).toString()
   try {
     const user = await UserModel.create({ name, phone, email, password: encryptedPassword, username, gender, age, services, terms })
@@ -150,6 +154,67 @@ app.post('/patient/signup', async (req, res) => {
     return res.status(500).send({ message: "Something went wrong! Please try again.", success: false })
   }
 })
+
+
+app.get('/dentists', patientAuthMiddleware, async (req, res) => {
+  try {
+    const dentists = await DentistModal.find()
+    return res.status(200).send({ success: true, dentists })
+
+  } catch (error) {
+    return res.status(500).send({ success: false, message: "Something went wrong! Please try again." })
+  }
+})
+
+app.get('/services', patientAuthMiddleware, async (req, res) => {
+  try {
+    const services = await ServiceModal.find()
+    return res.status(200).send({ success: true, services })
+  } catch (error) {
+    return res.status(500).send({ success: false, message: "Something went wrong! Please try again." })
+  }
+})
+
+app.post('/patient/createappointment', patientAuthMiddleware, async (req, res) => {
+
+  // TODO: add validation
+  const { dentist, service, startDate, endDate, startTime, endTime, description } = req.body
+  if (!dentist || !service || !startDate || !endDate || !startTime || !endTime) {
+    return res.status(400).send({ success: false, message: "Missing some of the required fields." })
+  }
+  // TODO: modify this for dentist name and service service name
+  try {
+    const newAppointment = await AppointmentModal.create({ dentist, service, date, time, description, patient: req.user.id })
+    return res.status(200).send({ success: true, message: "Appointment created successfully", appointment: newAppointment })
+  } catch (error) {
+    return res.status(500).send({ success: false, message: "Something went wrong. Please try again" })
+  }
+})
+
+// get all the appointments of a patient
+app.get('/patient/appointments/:id', patientAuthMiddleware, async (req, res) => {
+  const { id } = req.params
+  try {
+    const appointments = await AppointmentModal.find({ userId: id })
+    // TODO: filter the information and send only what is needed. 
+    return res.status(200).send({ success: true, appointments })
+  } catch (error) {
+    return res.status(500).send({ success: false, message: "Something went wrong. Please try again" })
+  }
+})
+
+// get all the appointments of a dentist
+app.get('/dentist/appointments/:id', patientAuthMiddleware, async (req, res) => {
+  const { id } = req.params
+  try {
+    const appointments = await AppointmentModal.find({ dentistId: id })
+    // TODO: filter the information and send only what is needed. 
+    return res.status(200).send({ success: true, appointments })
+  } catch (error) {
+    return res.status(500).send({ success: false, message: "Something went wrong. Please try again" })
+  }
+})
+
 
 app.listen(port, () => {
 

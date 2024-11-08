@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken')
-const { AdminModel } = require("./db")
+const { AdminModel, UserModel } = require("./db")
 
 const adminAuthMiddleware = async (req, res, next) => {
   const token = req.headers.authorization
@@ -26,7 +26,7 @@ const patientAuthMiddleware = async (req, res, next) => {
   if (token) {
     try {
       const { email, id } = jwt.verify(token, process.env.JWT_SECRET)
-      const patient = await PatientModel.findOne({ _id: id })
+      const patient = await UserModel.findOne({ _id: id })
       if (!patient) {
         return res.status(401).send({ success: false, message: 'Please login to continue!' })
       }

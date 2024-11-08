@@ -158,7 +158,7 @@ app.post('/patient/signup', async (req, res) => {
 
 app.get('/dentists', patientAuthMiddleware, async (req, res) => {
   try {
-    const dentists = await DentistModal.find()
+    const dentists = await DentistModal.find().select('_id name hourlyRate ')
     return res.status(200).send({ success: true, dentists })
 
   } catch (error) {

@@ -127,7 +127,7 @@ app.post('/patient/login', async (req, res) => {
     id: verifyUser._id
   }, process.env.JWT_SECRET, { expiresIn: 60 * 60 });
 
-  res.status(200).send({ message: "Login successful", success: true, token })
+  res.status(200).send({ message: "Login successful", success: true, token, user: { name: verifyUser.name, email: verifyUser.email, _id: verifyUser._id, username: verifyUser.username } })
 })
 
 app.post('/patient/signup', async (req, res) => {
@@ -176,15 +176,38 @@ app.get('/services', patientAuthMiddleware, async (req, res) => {
 })
 
 app.post('/patient/createappointment', patientAuthMiddleware, async (req, res) => {
-
-  // TODO: add validation
-  const { dentist, service, startDate, endDate, startTime, endTime, description } = req.body
-  if (!dentist || !service || !startDate || !endDate || !startTime || !endTime) {
+  const { title, userId, userName, dentistId, dentistName, serviceId, serviceName, startDate, endDate, startTime, endTime, amount } = req.body
+  if (!userId || !userName || !dentistId || !serviceId || !startDate || !endDate || !startTime || !endTime || !amount || isNaN(+amount)) {
     return res.status(400).send({ success: false, message: "Missing some of the required fields." })
   }
+  if (!title.trim()) {
+    title = serviceName + " with " + dentistName
+  }
+
+
+  const appointmentObj = {
+    title,
+    userId,
+    userName,
+    dentistId,
+    dentistName,
+    serviceId,
+    serviceName,
+    startDate,
+    endDate,
+    startTime,
+    endTime,
+    amount: +amount
+  }
+
   // TODO: modify this for dentist name and service service name
   try {
-    const newAppointment = await AppointmentModal.create({ dentist, service, date, time, description, patient: req.user.id })
+
+    const slotAlreadyBooked = await AppointmentModal.findOne({ startDate, endDate, startTime, endTime, dentistId })
+    if (slotAlreadyBooked) {
+      return res.status(400).send({ success: false, message: "This slot is already booked, by some other patient. Please select different slot." })
+    }
+    const newAppointment = await AppointmentModal.create(appointmentObj)
     return res.status(200).send({ success: true, message: "Appointment created successfully", appointment: newAppointment })
   } catch (error) {
     return res.status(500).send({ success: false, message: "Something went wrong. Please try again" })
@@ -196,7 +219,6 @@ app.get('/patient/appointments/:id', patientAuthMiddleware, async (req, res) => 
   const { id } = req.params
   try {
     const appointments = await AppointmentModal.find({ userId: id })
-    // TODO: filter the information and send only what is needed. 
     return res.status(200).send({ success: true, appointments })
   } catch (error) {
     return res.status(500).send({ success: false, message: "Something went wrong. Please try again" })
@@ -208,7 +230,6 @@ app.get('/dentist/appointments/:id', patientAuthMiddleware, async (req, res) => 
   const { id } = req.params
   try {
     const appointments = await AppointmentModal.find({ dentistId: id })
-    // TODO: filter the information and send only what is needed. 
     return res.status(200).send({ success: true, appointments })
   } catch (error) {
     return res.status(500).send({ success: false, message: "Something went wrong. Please try again" })

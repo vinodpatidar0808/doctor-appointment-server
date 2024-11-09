@@ -48,13 +48,17 @@ const Dentists = new Schema({
 const Appointment = new Schema({
   title: { type: String, required: true },
   userId: { type: ObjectId, ref: "users", required: true },
+  userName: { type: String},
   dentistId: { type: ObjectId, ref: "dentist", required: true },
   serviceId: { type: ObjectId, ref: "services", required: true },
-  date: { type: Date, required: true },
-  startTime: { type: Date, required: true },
-  endTime: { type: Date, required: true },
+  serviceName: { type: String, required: true },
+  dentistName: { type: String, required: true },
+  startDate: { type: String, required: true },
+  endDate: { type: String, required: true },
+  startTime: { type: String, required: true },
+  endTime: { type: String, required: true },
   amount: { type: Number, required: true },
-  // status: { type: String, enum: ["booked", "completed", "cancelled"], default: "booked" },
+  // status: { type: String, enum: ["pending", "confirmed", "cancelled"], default: "pending" },
   // paymentStatus: { type: String, enum: ["pending", "completed"], default: "pending" },
   createdAt: { type: Date, default: Date.now }
 });

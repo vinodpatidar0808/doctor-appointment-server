@@ -58,7 +58,7 @@ const Appointment = new Schema({
   startTime: { type: String, required: true },
   endTime: { type: String, required: true },
   amount: { type: Number, required: true },
-  // status: { type: String, enum: ["pending", "confirmed", "cancelled"], default: "pending" },
+  status: { type: String, enum: ["pending", "completed", "cancelled"], default: "pending" },
   // paymentStatus: { type: String, enum: ["pending", "completed"], default: "pending" },
   createdAt: { type: Date, default: Date.now }
 });

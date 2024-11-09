@@ -259,15 +259,27 @@ app.post('/dentist/login', async (req, res) => {
 app.get('/dentist/appointments/:id', dentistAuthMiddleware, async (req, res) => {
   const { id } = req.params
   try {
-    const appointments = await AppointmentModal.find({ dentistId: id })
+    const appointments = await AppointmentModal.find({ dentistId: id }).select('_id title startDate endDate startTime endTime serviceName userName amount status')
     return res.status(200).send({ success: true, appointments })
   } catch (error) {
     return res.status(500).send({ success: false, message: "Something went wrong. Please try again" })
   }
 })
 
+// update the status of an appointment
+app.put('/dentist/updateappointment/:id', dentistAuthMiddleware, async (req, res) => {
+  const { id } = req.params
+  const { status, dentistId } = req.body
+  try {
+    const updatedAppointment = await AppointmentModal.findOneAndUpdate({ $and: [{ dentistId: dentistId }, { _id: id }] }, { status }, { new: true })
+    return res.status(200).send({ success: true, message: "Appointment status updated successfully" })
+  } catch (error) {
+    return res.status(500).send({ success: false, message: "Something went wrong. Please try again" })
+  }
+})
+
+
 
 app.listen(port, () => {
-
   console.log("server running on port ", port)
 })

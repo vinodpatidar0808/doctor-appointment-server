@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const CryptoJS = require("crypto-js");
 const { AdminModel, ServiceModal, DentistModal, UserModel, AppointmentModal } = require("./db");
 const jwt = require('jsonwebtoken');
-const { adminAuthMiddleware, patientAuthMiddleware } = require("./middlewares");
+const { adminAuthMiddleware, patientAuthMiddleware, dentistAuthMiddleware } = require("./middlewares");
 const { mobileRegex, emailRegex } = require("./helper");
 require('dotenv').config()
 
@@ -148,7 +148,13 @@ app.post('/patient/signup', async (req, res) => {
   const encryptedPassword = CryptoJS.AES.encrypt(password, process.env.CRYPTO_SECRET).toString()
   try {
     const user = await UserModel.create({ name, phone, email, password: encryptedPassword, username, gender, age, services, terms })
-    return res.status(200).send({ message: "Sign up successful", success: true })
+
+    const token = jwt.sign({
+      email: user.email,
+      id: user._id
+    }, process.env.JWT_SECRET, { expiresIn: 60 * 60 });
+
+    return res.status(200).send({ message: "Sign up successful", success: true, token, user: { name: user.name, email: user.email, _id: user._id, username: user.username } })
   } catch (error) {
     console.log(error)
     return res.status(500).send({ message: "Something went wrong! Please try again.", success: false })
@@ -225,8 +231,32 @@ app.get('/patient/appointments/:id', patientAuthMiddleware, async (req, res) => 
   }
 })
 
+// dentist endpoints 
+
+app.post('/dentist/login', async (req, res) => {
+  const { username, password } = req.body
+
+  if (!username || !password) {
+    return res.status(400).send({ success: false, message: "Missing some of the required fields." })
+  }
+
+  const verifyDentist = await DentistModal.findOne({ $or: [{ username: username }, { email: username }] })
+  if (!verifyDentist) {
+    return res.status(400).send({ success: false, message: "Invalid email or password" })
+  }
+  const decryptedPassword = CryptoJS.AES.decrypt(verifyDentist.password, process.env.CRYPTO_SECRET).toString(CryptoJS.enc.Utf8)
+
+  if (password !== decryptedPassword) {
+    return res.status(400).send({ success: false, message: "Invalid email or password" })
+  }
+
+  const token = jwt.sign({ email: verifyDentist.email, id: verifyDentist._id }, process.env.JWT_SECRET, { expiresIn: 60 * 60 });
+  return res.status(200).send({ success: true, message: "Login successful", token, user: { name: verifyDentist.name, email: verifyDentist.email, _id: verifyDentist._id, username: verifyDentist.username } })
+})
+
 // get all the appointments of a dentist
-app.get('/dentist/appointments/:id', patientAuthMiddleware, async (req, res) => {
+// TODO: try to modify this to get appointst between specific dates or appointments of a specific month
+app.get('/dentist/appointments/:id', dentistAuthMiddleware, async (req, res) => {
   const { id } = req.params
   try {
     const appointments = await AppointmentModal.find({ dentistId: id })

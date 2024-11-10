@@ -101,6 +101,42 @@ app.post('/admin/adddentist', adminAuthMiddleware, async (req, res) => {
   }
 })
 
+app.get('/admin/todays-appointments', adminAuthMiddleware, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0].split('-').reverse().join('/')
+    const appointments = await AppointmentModal.find({ startDate: today }).select('_id startDate userName dentistName serviceName')
+    return res.status(200).send({ success: true, appointments })
+  } catch (error) {
+    return res.status(500).send({ success: false, message: "Failed to fetch appointments for today. Please try again." })
+  }
+})
+
+app.get('/admin/reports', adminAuthMiddleware, async (req, res) => {
+  const { startDate, endDate } = req.query
+  if (!startDate || !endDate) {
+    return res.status(400).send({ success: false, message: "Start date and end date are required." })
+  }
+  try {
+    // TODO: try to do this with aggregation at a later stage
+    const appointments = await AppointmentModal.find({ $and: [{ comparisonStartDate: { $gte: startDate } }, { comparisonEndDate: { $lte: endDate } }] }).sort({ createdAt: -1 }).select('_id dentistId dentistName startDate createdAt')
+    // it stores the first appearance of each dentist and their indexOf
+    const reports = []
+    const dentistIndex = {}
+    appointments.forEach((appointment) => {
+      if (dentistIndex[appointment.dentistId] >= 0) {
+        reports[dentistIndex[appointment.dentistId]].totalBookings++
+      } else {
+        dentistIndex[appointment.dentistId] = reports.length
+        reports.push({ _id: appointment._id, dentistId: appointment.dentistId, dentistName: appointment.dentistName, startDate: appointment.startDate, totalBookings: 1 })
+      }
+    })
+
+    return res.status(200).send({ success: true, reports })
+  } catch (error) {
+    return res.status(500).send({ success: false, message: "Failed to fetch reports. Please try again." })
+  }
+})
+
 
 // patient endpoints
 app.post('/patient/login', async (req, res) => {
@@ -203,12 +239,12 @@ app.post('/patient/createappointment', patientAuthMiddleware, async (req, res) =
     endDate,
     startTime,
     endTime,
-    amount: +amount
+    amount: +amount,
+    comparisonStartDate: startDate.split('/').reverse().join('/'),
+    comparisonEndDate: endDate.split('/').reverse().join('/'),
   }
 
-  // TODO: modify this for dentist name and service service name
   try {
-
     const slotAlreadyBooked = await AppointmentModal.findOne({ startDate, endDate, startTime, endTime, dentistId })
     if (slotAlreadyBooked) {
       return res.status(400).send({ success: false, message: "This slot is already booked, by some other patient. Please select different slot." })

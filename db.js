@@ -48,7 +48,7 @@ const Dentists = new Schema({
 const Appointment = new Schema({
   title: { type: String, required: true },
   userId: { type: ObjectId, ref: "users", required: true },
-  userName: { type: String},
+  userName: { type: String },
   dentistId: { type: ObjectId, ref: "dentist", required: true },
   serviceId: { type: ObjectId, ref: "services", required: true },
   serviceName: { type: String, required: true },
@@ -56,6 +56,8 @@ const Appointment = new Schema({
   startDate: { type: String, required: true },
   endDate: { type: String, required: true },
   startTime: { type: String, required: true },
+  comparisonStartDate: { type: String, required: true },
+  comparisonEndDate: { type: String, required: true },
   endTime: { type: String, required: true },
   amount: { type: Number, required: true },
   status: { type: String, enum: ["pending", "completed", "cancelled"], default: "pending" },

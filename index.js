@@ -21,12 +21,9 @@ async function main() {
 main().catch(err => console.log(err));
 
 
-const whitelist = ['http://localhost:5173', "http://localhost:3000"]
+const whitelist = ['http://localhost:5173', "http://localhost:3000", "https://doctor-appointment-patient.onrender.com", "https://doctor-appointment-dentist.onrender.com", "https://doctor-appointment-admin-vq73.onrender.com"]
 const corsOptions = {
   origin: function (origin, callback) {
-    // TODO: remove this before deploying
-    callback(null, true)
-    return
     if (whitelist.indexOf(origin) !== -1) {
       callback(null, true)
     } else {
